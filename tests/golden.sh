@@ -56,7 +56,10 @@ compare "test entries, colors, cat" --since "$since" --until "$until" -o cat
 ENVS=(TZ=Europe/Berlin)
 compare "test entries, Europe/Berlin" --since "$since" --until "$until" -o short-full
 ENVS=(TZ=UTC)
-compare "whole journal, last 5000" --until "$since" -n 5000
-compare "whole journal, -p warning" --until "$since" -p warning
-compare "kernel" --until "$since" -k -n 2000
+# A time window, not -n: journalctl 255 with -n N --until T and fewer than N
+# entries also prints entries after T.
+window=(--since "@$(( ${since#@} - 6 * 3600 ))" --until "$since")
+compare "whole journal, last 6 hours" "${window[@]}"
+compare "whole journal, -p warning" "${window[@]}" -p warning
+compare "kernel" "${window[@]}" -k
 exit $fail
