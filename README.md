@@ -50,9 +50,9 @@ follows from the newest entry.
 Requires Python 3.9 or newer and journalctl. No other dependencies.
 
 ```sh
-pipx install git+https://github.com/Jwrede/journalctl-not
+pipx install git+https://github.com/Jwrede/journalctl-not.git
 # or
-uv tool install git+https://github.com/Jwrede/journalctl-not
+uv tool install git+https://github.com/Jwrede/journalctl-not.git
 ```
 
 Reading the system journal needs the same rights as journalctl: be root or in
