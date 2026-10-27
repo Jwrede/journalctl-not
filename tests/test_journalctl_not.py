@@ -129,8 +129,21 @@ def test_render_identifier_fallbacks(monkeypatch):
     set_tz(monkeypatch, "UTC")
     e = entry("x", SYSLOG_IDENTIFIER=None, _COMM="python3", _PID=None, SYSLOG_PID="7")
     assert render(e).endswith("python3[7]: x")
-    k = entry("oops", _TRANSPORT="kernel")
+    k = entry("oops", SYSLOG_IDENTIFIER="kernel", _PID=None, _TRANSPORT="kernel")
     assert render(k, hostname=False) == "Oct 27 05:24:54 kernel: oops"
+    # early boot messages that systemd tools wrote to /dev/kmsg keep their sender
+    kmsg = entry("x", SYSLOG_IDENTIFIER="systemd-fstab-generator", _PID="1578", _TRANSPORT="kernel")
+    assert render(kmsg).endswith(" systemd-fstab-generator[1578]: x")
+    nothing = entry("x", SYSLOG_IDENTIFIER=None, _PID=None, _HOSTNAME=None)
+    assert render(nothing) == "Oct 27 05:24:54 unknown: x"
+    unprintable = entry("x", SYSLOG_IDENTIFIER=[97, 1], _COMM="comm")
+    assert render(unprintable).endswith(" comm[42]: x")
+
+
+def test_render_indent_counts_bytes(monkeypatch):
+    set_tz(monkeypatch, "UTC")
+    out = render(entry("a\nb", SYSLOG_IDENTIFIER="\u00fc"), hostname=False)
+    assert out.split("\n")[1] == " " * len("Oct 27 05:24:54 \u00fc[42]: ".encode()) + "b"
 
 
 def test_render_timestamp_modes(monkeypatch):

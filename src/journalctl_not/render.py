@@ -220,20 +220,22 @@ def render(entry, mode="short", *, utc=False, hostname=True, show_all=False, col
     if color and not on and field_text(entry, "_TRANSPORT") == "audit":
         on, off = ANSI_BLUE, ANSI_NORMAL
 
+    def shown(name):
+        # shall_print(): a field is skipped when it is unprintable or 300+ bytes long
+        raw_field = field_bytes(entry.get(name))
+        if raw_field is None:
+            return None
+        if not show_all and (len(raw_field) >= 300 or not is_printable(raw_field)):
+            return None
+        return _decode(raw_field)
+
     parts = [_timestamp(entry, mode, utc)]
-    host = field_text(entry, "_HOSTNAME")
-    if hostname and host:
+    host = shown("_HOSTNAME") if hostname else None
+    if host is not None:
         parts.append(host)
-    if field_text(entry, "_TRANSPORT") == "kernel":
-        ident, pid = "kernel", None
-    else:
-        # A present but empty field still wins, as in journalctl.
-        ident = _first(field_text(entry, "SYSLOG_IDENTIFIER"), field_text(entry, "_COMM"))
-        pid = _first(field_text(entry, "_PID"), field_text(entry, "SYSLOG_PID"))
-    if ident is not None:
-        parts.append(f"{ident}[{pid}]:" if pid is not None else f"{ident}:")
-    else:
-        parts.append("unknown:")
+    ident = _first(shown("SYSLOG_IDENTIFIER"), shown("_COMM"), "unknown")
+    pid = _first(shown("_PID"), shown("SYSLOG_PID"))
+    parts.append(f"{ident}[{pid}]:" if pid is not None else f"{ident}:")
     prefix = " ".join(parts) + " "
 
     if not show_all and not is_printable(raw):
@@ -248,7 +250,8 @@ def render(entry, mode="short", *, utc=False, hostname=True, show_all=False, col
     if text.endswith("\n"):
         lines.pop()
     out = []
-    indent = " " * len(prefix)
+    # journalctl indents continuation lines by the byte length of the prefix
+    indent = " " * len(prefix.encode("utf-8", "surrogateescape"))
     for n, line in enumerate(lines):
         lead = prefix if n == 0 else indent
         if n == 0 and line and color:
