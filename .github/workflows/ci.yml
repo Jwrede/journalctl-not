@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python: ["3.9", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install pytest -e .
+      - run: pytest -q
+      - name: Byte-for-byte comparison with journalctl
+        run: |
+          journalctl --version | head -1
+          SUDO="sudo -n" PY="$(which python)" tests/golden.sh
+      - name: Installed command runs
+        run: sudo -n "$(which journalctl-not)" -n 3 --no-pager -T systemd
